@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gohan">
+<meta name="theme-color" content="#0d1117">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Gohan Floor Plan</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:#0d1117; font-family:Arial,sans-serif; color:#cdd9e5; overflow:hidden; height:100vh; }
+
+  #toolbar {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; background:#0d1117;
+    border-bottom:1px solid #1f2d3d; flex-wrap:wrap;
+    position:fixed; top:0; left:0; right:0; z-index:999;
+    /* account for iOS safe area (notch) */
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  #toolbar-title { font-size:.75rem; color:#3a5a78; font-family:monospace; letter-spacing:.1em; }
+  .legend { display:flex; gap:10px; }
+  .leg { display:flex; align-items:center; gap:4px; font-size:.6rem; color:#4a7fa5; font-family:monospace; }
+  .dot { width:7px; height:7px; border-radius:50%; border:2px solid; display:inline-block; }
+
+  #canvas {
+    position:fixed;
+    top:52px; left:0; right:0;
+    bottom: max(28px, calc(28px + env(safe-area-inset-bottom)));
+    overflow:hidden;
+  }
+
+  .tbl {
+    position:absolute;
+    border-radius:8px; border:1.5px solid #2d4a66;
+    background:#1c2a3a; color:#8ab4d4;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  .tbl.on   { background:#0f3a2e; border-color:#00e676; color:#00e676; }
+  .tbl.warn { background:#3a2200; border-color:#ff9100; color:#ff9100; }
+  .tbl.hot  { background:#3a0000; border-color:#ff1744; color:#ff1744; }
+  .tbl-name { font-size:.8rem; font-weight:bold; pointer-events:none; }
+  .tbl-time { font-family:monospace; font-size:.68rem; pointer-events:none; min-height:13px; }
+  .rzh {
+    position:absolute; bottom:1px; right:3px;
+    font-size:13px; color:#4a7fa5;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+    padding:4px;
+  }
+  .tbl.on   .rzh { color:#00b854; }
+  .tbl.warn .rzh { color:#cc7300; }
+  .tbl.hot  .rzh { color:#cc1236; }
+
+  #summary {
+    position:fixed; bottom:0; left:0; right:0;
+    text-align:center; padding:6px;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    font-size:.7rem; font-family:monospace;
+    color:#3a5a78; background:#0d1117;
+    border-top:1px solid #1f2d3d;
+  }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span id="toolbar-title">GOHAN FLOOR PLAN</span>
+  <div class="legend">
+    <div class="leg"><span class="dot" style="border-color:#2d4a66;background:#1c2a3a"></span>open</div>
+    <div class="leg"><span class="dot" style="border-color:#00e676;background:#0f3a2e"></span>&lt;30m</div>
+    <div class="leg"><span class="dot" style="border-color:#ff9100;background:#3a2200"></span>30-60m</div>
+    <div class="leg"><span class="dot" style="border-color:#ff1744;background:#3a0000"></span>60m+</div>
+  </div>
+</div>
+
+<div id="canvas">
+  <div class="tbl" id="b-D8"  style="left:140px;top:10px;width:62px;height:48px;"><span class="tbl-name">D8</span><span class="tbl-time" id="tm-D8"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D9"  style="left:212px;top:10px;width:62px;height:48px;"><span class="tbl-name">D9</span><span class="tbl-time" id="tm-D9"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D7"  style="left:60px;top:68px;width:62px;height:48px;"><span class="tbl-name">D7</span><span class="tbl-time" id="tm-D7"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D6"  style="left:60px;top:126px;width:62px;height:48px;"><span class="tbl-name">D6</span><span class="tbl-time" id="tm-D6"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D5"  style="left:60px;top:210px;width:62px;height:48px;"><span class="tbl-name">D5</span><span class="tbl-time" id="tm-D5"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D4"  style="left:60px;top:268px;width:62px;height:48px;"><span class="tbl-name">D4</span><span class="tbl-time" id="tm-D4"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D3"  style="left:60px;top:326px;width:62px;height:48px;"><span class="tbl-name">D3</span><span class="tbl-time" id="tm-D3"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D2"  style="left:60px;top:410px;width:62px;height:48px;"><span class="tbl-name">D2</span><span class="tbl-time" id="tm-D2"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D1"  style="left:60px;top:468px;width:62px;height:48px;"><span class="tbl-name">D1</span><span class="tbl-time" id="tm-D1"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C11" style="left:180px;top:70px;width:62px;height:48px;"><span class="tbl-name">C11</span><span class="tbl-time" id="tm-C11"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C6"  style="left:268px;top:70px;width:62px;height:48px;"><span class="tbl-name">C6</span><span class="tbl-time" id="tm-C6"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C1"  style="left:349px;top:70px;width:62px;height:48px;"><span class="tbl-name">C1</span><span class="tbl-time" id="tm-C1"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C12" style="left:268px;top:129px;width:61px;height:65px;"><span class="tbl-name">C12</span><span class="tbl-time" id="tm-C12"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C7"  style="left:182px;top:129px;width:64px;height:65px;"><span class="tbl-name">C7</span><span class="tbl-time" id="tm-C7"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C2"  style="left:350px;top:129px;width:61px;height:65px;"><span class="tbl-name">C2</span><span class="tbl-time" id="tm-C2"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C13" style="left:181px;top:210px;width:62px;height:48px;"><span class="tbl-name">C13</span><span class="tbl-time" id="tm-C13"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C8"  style="left:254px;top:211px;width:62px;height:48px;"><span class="tbl-name">C8</span><span class="tbl-time" id="tm-C8"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C3"  style="left:329px;top:212px;width:62px;height:48px;"><span class="tbl-name">C3</span><span class="tbl-time" id="tm-C3"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C14" style="left:180px;top:268px;width:62px;height:48px;"><span class="tbl-name">C14</span><span class="tbl-time" id="tm-C14"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C9"  style="left:255px;top:270px;width:62px;height:48px;"><span class="tbl-name">C9</span><span class="tbl-time" id="tm-C9"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C4"  style="left:328px;top:270px;width:62px;height:48px;"><span class="tbl-name">C4</span><span class="tbl-time" id="tm-C4"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C15" style="left:180px;top:324px;width:62px;height:48px;"><span class="tbl-name">C15</span><span class="tbl-time" id="tm-C15"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C10" style="left:254px;top:327px;width:62px;height:48px;"><span class="tbl-name">C10</span><span class="tbl-time" id="tm-C10"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C5"  style="left:328px;top:329px;width:62px;height:48px;"><span class="tbl-name">C5</span><span class="tbl-time" id="tm-C5"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A13" style="left:404px;top:212px;width:62px;height:48px;"><span class="tbl-name">A13</span><span class="tbl-time" id="tm-A13"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A14" style="left:405px;top:271px;width:62px;height:48px;"><span class="tbl-name">A14</span><span class="tbl-time" id="tm-A14"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A15" style="left:403px;top:329px;width:62px;height:48px;"><span class="tbl-name">A15</span><span class="tbl-time" id="tm-A15"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A9"  style="left:511px;top:75px;width:62px;height:48px;"><span class="tbl-name">A9</span><span class="tbl-time" id="tm-A9"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A10" style="left:511px;top:133px;width:62px;height:48px;"><span class="tbl-name">A10</span><span class="tbl-time" id="tm-A10"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A5"  style="left:591px;top:74px;width:62px;height:48px;"><span class="tbl-name">A5</span><span class="tbl-time" id="tm-A5"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A6"  style="left:591px;top:134px;width:62px;height:48px;"><span class="tbl-name">A6</span><span class="tbl-time" id="tm-A6"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A1"  style="left:673px;top:75px;width:62px;height:48px;"><span class="tbl-name">A1</span><span class="tbl-time" id="tm-A1"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A2"  style="left:672px;top:135px;width:62px;height:48px;"><span class="tbl-name">A2</span><span class="tbl-time" id="tm-A2"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A11" style="left:514px;top:211px;width:62px;height:48px;"><span class="tbl-name">A11</span><span class="tbl-time" id="tm-A11"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A12" style="left:514px;top:269px;width:62px;height:48px;"><span class="tbl-name">A12</span><span class="tbl-time" id="tm-A12"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A7"  style="left:591px;top:209px;width:62px;height:48px;"><span class="tbl-name">A7</span><span class="tbl-time" id="tm-A7"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A8"  style="left:592px;top:270px;width:62px;height:48px;"><span class="tbl-name">A8</span><span class="tbl-time" id="tm-A8"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A3"  style="left:672px;top:211px;width:62px;height:48px;"><span class="tbl-name">A3</span><span class="tbl-time" id="tm-A3"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A4"  style="left:672px;top:271px;width:62px;height:48px;"><span class="tbl-name">A4</span><span class="tbl-time" id="tm-A4"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B1"  style="left:404px;top:430px;width:62px;height:48px;"><span class="tbl-name">B1</span><span class="tbl-time" id="tm-B1"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B2"  style="left:403px;top:489px;width:62px;height:48px;"><span class="tbl-name">B2</span><span class="tbl-time" id="tm-B2"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B3"  style="left:330px;top:431px;width:62px;height:48px;"><span class="tbl-name">B3</span><span class="tbl-time" id="tm-B3"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B4"  style="left:329px;top:489px;width:62px;height:48px;"><span class="tbl-name">B4</span><span class="tbl-time" id="tm-B4"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B5"  style="left:256px;top:430px;width:62px;height:48px;"><span class="tbl-name">B5</span><span class="tbl-time" id="tm-B5"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B6"  style="left:255px;top:487px;width:62px;height:48px;"><span class="tbl-name">B6</span><span class="tbl-time" id="tm-B6"></span><span class="rzh">⤡</span></div>
+</div>
+
+<div id="summary">All tables open</div>
+
+<script>
+(function(){
+  var state = {}, ivs = {};
+  var summary = document.getElementById('summary');
+
+  document.querySelectorAll('.tbl').forEach(function(el) {
+    var id = el.id.replace('b-', '');
+    state[id] = {
+      started: null,
+      x: parseInt(el.style.left),
+      y: parseInt(el.style.top),
+      w: parseInt(el.style.width),
+      h: parseInt(el.style.height)
+    };
+
+    var dragging = false, moved = false;
+    var t0x, t0y, startL, startTop;
+    var TAP_THRESHOLD = 8;
+
+    el.addEventListener('touchstart', function(e) {
+      if (e.target.classList.contains('rzh')) return;
+      e.preventDefault();
+      dragging = true; moved = false;
+      t0x = e.changedTouches[0].clientX;
+      t0y = e.changedTouches[0].clientY;
+      startL = parseInt(el.style.left);
+      startTop = parseInt(el.style.top);
+      el.style.zIndex = 200;
+    }, { passive: false });
+
+    el.addEventListener('touchmove', function(e) {
+      if (!dragging) return;
+      e.preventDefault();
+      var dx = e.changedTouches[0].clientX - t0x;
+      var dy = e.changedTouches[0].clientY - t0y;
+      if (Math.abs(dx) > TAP_THRESHOLD || Math.abs(dy) > TAP_THRESHOLD) moved = true;
+      if (moved) {
+        el.style.left = (startL + dx) + 'px';
+        el.style.top  = (startTop + dy) + 'px';
+        state[id].x = startL + dx;
+        state[id].y = startTop + dy;
+      }
+    }, { passive: false });
+
+    el.addEventListener('touchend', function(e) {
+      if (!dragging) return;
+      e.preventDefault();
+      dragging = false; el.style.zIndex = '';
+      if (!moved) toggle(id);
+    }, { passive: false });
+
+    el.addEventListener('touchcancel', function() {
+      dragging = false; el.style.zIndex = '';
+    });
+
+    // Resize handle
+    var rzh = el.querySelector('.rzh');
+    var rDragging = false, rT0x, rT0y, rSW, rSH;
+
+    rzh.addEventListener('touchstart', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      rDragging = true;
+      rT0x = e.changedTouches[0].clientX;
+      rT0y = e.changedTouches[0].clientY;
+      rSW = parseInt(el.style.width);
+      rSH = parseInt(el.style.height);
+    }, { passive: false });
+
+    rzh.addEventListener('touchmove', function(e) {
+      if (!rDragging) return;
+      e.preventDefault(); e.stopPropagation();
+      var nw = Math.max(48, rSW + (e.changedTouches[0].clientX - rT0x));
+      var nh = Math.max(40, rSH + (e.changedTouches[0].clientY - rT0y));
+      el.style.width = nw + 'px'; el.style.height = nh + 'px';
+      state[id].w = nw; state[id].h = nh;
+    }, { passive: false });
+
+    rzh.addEventListener('touchend', function(e) {
+      e.preventDefault(); rDragging = false;
+    }, { passive: false });
+
+    // Mouse fallback for desktop
+    el.addEventListener('mousedown', function(e) {
+      if (e.target.classList.contains('rzh')) return;
+      e.preventDefault();
+      var mx = e.clientX, my = e.clientY;
+      var sl = parseInt(el.style.left), st = parseInt(el.style.top);
+      var mm = false;
+      el.style.zIndex = 200;
+      function mv(e) {
+        var dx = e.clientX-mx, dy = e.clientY-my;
+        if (Math.abs(dx)>TAP_THRESHOLD||Math.abs(dy)>TAP_THRESHOLD) mm=true;
+        if(mm){el.style.left=(sl+dx)+'px';el.style.top=(st+dy)+'px';state[id].x=sl+dx;state[id].y=st+dy;}
+      }
+      function mu() {
+        document.removeEventListener('mousemove',mv);
+        document.removeEventListener('mouseup',mu);
+        el.style.zIndex='';
+        if(!mm) toggle(id);
+      }
+      document.addEventListener('mousemove',mv);
+      document.addEventListener('mouseup',mu);
+    });
+
+    rzh.addEventListener('mousedown', function(e) {
+      e.stopPropagation(); e.preventDefault();
+      var sx=e.clientX,sy=e.clientY,sw=parseInt(el.style.width),sh=parseInt(el.style.height);
+      function mv(e){var nw=Math.max(48,sw+(e.clientX-sx)),nh=Math.max(40,sh+(e.clientY-sy));el.style.width=nw+'px';el.style.height=nh+'px';state[id].w=nw;state[id].h=nh;}
+      function mu(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',mu);}
+      document.addEventListener('mousemove',mv);
+      document.addEventListener('mouseup',mu);
+    });
+  });
+
+  function toggle(id) {
+    var s=state[id], el=document.getElementById('b-'+id);
+    if(s.started){
+      clearInterval(ivs[id]); delete ivs[id];
+      s.started=null; el.className='tbl';
+      document.getElementById('tm-'+id).textContent='';
+    } else {
+      s.started=Date.now();
+      ivs[id]=setInterval(function(){tick(id);},1000);
+      tick(id);
+    }
+    updateSummary();
+  }
+
+  function tick(id) {
+    var s=state[id]; if(!s.started) return;
+    var sec=Math.floor((Date.now()-s.started)/1000);
+    var m=Math.floor(sec/60), sc=sec%60;
+    document.getElementById('tm-'+id).textContent=pad(m)+':'+pad(sc);
+    document.getElementById('b-'+id).className='tbl '+(m>=60?'hot':m>=30?'warn':'on');
+  }
+
+  function pad(n){return n<10?'0'+n:''+n;}
+
+  function updateSummary() {
+    var n=0;
+    Object.keys(state).forEach(function(id){if(state[id].started)n++;});
+    summary.textContent=n===0?'All tables open':n+' table'+(n!==1?'s':'')+' occupied';
+  }
+
+})();
+</script>
+</body>
+</html>
