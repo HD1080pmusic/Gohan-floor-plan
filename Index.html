@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gohan">
+<meta name="theme-color" content="#0d1117">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Gohan Floor Plan</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:#0d1117; font-family:Arial,sans-serif; color:#cdd9e5; overflow:hidden; height:100vh; }
+
+  #toolbar {
+    display:flex; align-items:center; gap:10px;
+    padding:8px 12px; background:#0d1117;
+    border-bottom:1px solid #1f2d3d;
+    position:fixed; top:0; left:0; right:0; z-index:999;
+    padding-top: max(8px, env(safe-area-inset-top));
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    height: 48px;
+  }
+  #toolbar-title { font-size:.75rem; color:#3a5a78; font-family:monospace; letter-spacing:.1em; flex-shrink:0; }
+  .legend { display:flex; gap:8px; }
+  .leg { display:flex; align-items:center; gap:4px; font-size:.6rem; color:#4a7fa5; font-family:monospace; }
+  .dot { width:7px; height:7px; border-radius:50%; border:2px solid; display:inline-block; }
+
+  #btn-mode {
+    font-family:monospace; font-size:.68rem; padding:5px 12px;
+    border-radius:6px; cursor:pointer; border:1.5px solid;
+    transition: all .2s; flex-shrink:0; margin-left:auto;
+  }
+  #btn-mode.locked  { background:#1a1a2a; border-color:#3a5a78; color:#3a5a78; }
+  #btn-mode.editing { background:#2a1a00; border-color:#ff9100; color:#ff9100; }
+
+  #edit-banner {
+    display:none; position:fixed; top:48px; left:0; right:0;
+    text-align:center; padding:3px;
+    font-size:.62rem; font-family:monospace; letter-spacing:.08em;
+    color:#ff9100; background:rgba(42,26,0,.95);
+    border-bottom:1px solid #ff9100; z-index:998;
+  }
+  body.editing #edit-banner { display:block; }
+
+  #canvas {
+    position:fixed; left:0; right:0; overflow:hidden;
+    top:48px; bottom:24px;
+  }
+  body.editing #canvas { top:68px; }
+
+  .tbl {
+    position:absolute; border-radius:8px; border:1.5px solid #2d4a66;
+    background:#1c2a3a; color:#8ab4d4;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center; gap:0px;
+    touch-action:none; user-select:none; -webkit-user-select:none;
+  }
+  body.editing .tbl { border-style:dashed; }
+  .tbl.on   { background:#0f3a2e; border-color:#00e676; color:#00e676; }
+  .tbl.warn { background:#3a2200; border-color:#ff9100; color:#ff9100; }
+  .tbl.hot  { background:#3a0000; border-color:#ff1744; color:#ff1744; }
+
+  .tbl-name    { font-size:.72rem; font-weight:bold; pointer-events:none; line-height:1.1; }
+  .tbl-guests  { font-size:.62rem; pointer-events:none; opacity:.85; line-height:1.1; min-height:10px; }
+  .tbl-time    { font-family:monospace; font-size:.62rem; pointer-events:none; min-height:11px; line-height:1.1; }
+
+  .rzh {
+    position:absolute; bottom:1px; right:3px;
+    font-size:12px; color:#4a7fa5;
+    touch-action:none; user-select:none; padding:3px;
+  }
+  body.locked .rzh { opacity:0; pointer-events:none; }
+  .tbl.on   .rzh { color:#00b854; }
+  .tbl.warn .rzh { color:#cc7300; }
+  .tbl.hot  .rzh { color:#cc1236; }
+
+  #summary {
+    position:fixed; bottom:0; left:0; right:0;
+    text-align:center; padding:4px;
+    font-size:.68rem; font-family:monospace;
+    color:#3a5a78; background:#0d1117;
+    border-top:1px solid #1f2d3d; height:24px;
+  }
+
+  /* ── Guest picker modal ── */
+  #guest-modal {
+    display:none; position:fixed; inset:0; z-index:2000;
+    background:rgba(0,0,0,.7);
+    align-items:center; justify-content:center;
+  }
+  #guest-modal.show { display:flex; }
+  #guest-box {
+    background:#161b22; border:1.5px solid #2d4a66;
+    border-radius:12px; padding:20px 24px;
+    min-width:220px; text-align:center;
+  }
+  #guest-box h3 { font-size:.85rem; color:#8ab4d4; margin-bottom:14px; font-family:monospace; letter-spacing:.08em; }
+  #guest-box h3 span { color:#cdd9e5; }
+  .guest-btns { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-bottom:14px; }
+  .g-btn {
+    width:48px; height:42px; border-radius:8px;
+    border:1.5px solid #2d4a66; background:#1c2a3a;
+    color:#8ab4d4; font-size:.9rem; font-weight:bold;
+    cursor:pointer; font-family:monospace;
+  }
+  .g-btn:active, .g-btn.sel { background:#0f3a2e; border-color:#00e676; color:#00e676; }
+  #guest-cancel {
+    background:none; border:1px solid #3a5a78; color:#3a5a78;
+    font-family:monospace; font-size:.68rem; padding:6px 16px;
+    border-radius:6px; cursor:pointer;
+  }
+  #wall-thickness-wrap { display:flex; align-items:center; gap:6px; font-family:monospace; font-size:.65rem; color:#4a7fa5; }
+  #wall-thickness { width:70px; accent-color:#00e676; }
+
+  .wall {
+    position:absolute;
+    background:#4a6a88;
+    border-radius:3px;
+    pointer-events:none;
+    z-index:1;
+    box-shadow:0 0 6px rgba(74,106,136,0.5);
+  }
+</style>
+</head>
+<body class="locked">
+
+<div id="toolbar">
+  <span id="toolbar-title">GOHAN FLOOR PLAN</span>
+  <div class="legend">
+    <div class="leg"><span class="dot" style="border-color:#2d4a66;background:#1c2a3a"></span>open</div>
+    <div class="leg"><span class="dot" style="border-color:#00e676;background:#0f3a2e"></span>&lt;30m</div>
+    <div class="leg"><span class="dot" style="border-color:#ff9100;background:#3a2200"></span>30-60m</div>
+    <div class="leg"><span class="dot" style="border-color:#ff1744;background:#3a0000"></span>60m+</div>
+  </div>
+  <button id="btn-mode" class="locked">🔒 LOCKED</button>
+</div>
+
+<div id="edit-banner">✏️ EDIT MODE — drag to move · drag ⤡ to resize</div>
+
+<div id="canvas">
+
+  <!-- Structural walls: indoor/outdoor boundary -->
+  <div class="wall" style="left:21px;top:67px;width:446px;height:8px;"></div>
+  <div class="wall" style="left:467px;top:67px;width:8px;height:147px;"></div>
+  <!-- Wall between C15 and C10, spanning 3 tables right -->
+  <div class="wall" style="left:160px;top:188px;width:166px;height:8px;"></div>
+  <!-- Wall between C5 and A15, spanning 3 tables right -->
+  <div class="wall" style="left:160px;top:336px;width:165px;height:8px;"></div>
+  <!-- Wall between A12 and A8, spanning 2 tables -->
+  <div class="wall" style="left:220px;top:524px;width:106px;height:8px;"></div>
+  <!-- Wall between A10 and A6, spanning 2 tables -->
+  <div class="wall" style="left:356px;top:522px;width:106px;height:8px;"></div>
+  <div class="tbl" id="b-D8"   style="left:479px;top:80px;width:48px;height:62px;"><span class="tbl-name">D8</span><span class="tbl-guests" id="g-D8"></span><span class="tbl-time" id="tm-D8"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D9"   style="left:479px;top:152px;width:48px;height:62px;"><span class="tbl-name">D9</span><span class="tbl-guests" id="g-D9"></span><span class="tbl-time" id="tm-D9"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D7"   style="left:421px;top:0px;width:48px;height:62px;"><span class="tbl-name">D7</span><span class="tbl-guests" id="g-D7"></span><span class="tbl-time" id="tm-D7"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D6"   style="left:363px;top:0px;width:48px;height:62px;"><span class="tbl-name">D6</span><span class="tbl-guests" id="g-D6"></span><span class="tbl-time" id="tm-D6"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D5"   style="left:279px;top:0px;width:48px;height:62px;"><span class="tbl-name">D5</span><span class="tbl-guests" id="g-D5"></span><span class="tbl-time" id="tm-D5"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D4"   style="left:221px;top:0px;width:48px;height:62px;"><span class="tbl-name">D4</span><span class="tbl-guests" id="g-D4"></span><span class="tbl-time" id="tm-D4"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D3"   style="left:163px;top:0px;width:48px;height:62px;"><span class="tbl-name">D3</span><span class="tbl-guests" id="g-D3"></span><span class="tbl-time" id="tm-D3"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D2"   style="left:79px;top:0px;width:48px;height:62px;"><span class="tbl-name">D2</span><span class="tbl-guests" id="g-D2"></span><span class="tbl-time" id="tm-D2"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-D1"   style="left:21px;top:0px;width:48px;height:62px;"><span class="tbl-name">D1</span><span class="tbl-guests" id="g-D1"></span><span class="tbl-time" id="tm-D1"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C11"  style="left:419px;top:120px;width:48px;height:62px;"><span class="tbl-name">C11</span><span class="tbl-guests" id="g-C11"></span><span class="tbl-time" id="tm-C11"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C6"   style="left:419px;top:208px;width:48px;height:62px;"><span class="tbl-name">C6</span><span class="tbl-guests" id="g-C6"></span><span class="tbl-time" id="tm-C6"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C1"   style="left:419px;top:289px;width:48px;height:62px;"><span class="tbl-name">C1</span><span class="tbl-guests" id="g-C1"></span><span class="tbl-time" id="tm-C1"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C12"  style="left:343px;top:208px;width:65px;height:61px;"><span class="tbl-name">C12</span><span class="tbl-guests" id="g-C12"></span><span class="tbl-time" id="tm-C12"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C7"   style="left:343px;top:122px;width:65px;height:64px;"><span class="tbl-name">C7</span><span class="tbl-guests" id="g-C7"></span><span class="tbl-time" id="tm-C7"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C2"   style="left:343px;top:290px;width:65px;height:61px;"><span class="tbl-name">C2</span><span class="tbl-guests" id="g-C2"></span><span class="tbl-time" id="tm-C2"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C13"  style="left:279px;top:121px;width:48px;height:62px;"><span class="tbl-name">C13</span><span class="tbl-guests" id="g-C13"></span><span class="tbl-time" id="tm-C13"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C8"   style="left:278px;top:194px;width:48px;height:62px;"><span class="tbl-name">C8</span><span class="tbl-guests" id="g-C8"></span><span class="tbl-time" id="tm-C8"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C3"   style="left:277px;top:269px;width:48px;height:62px;"><span class="tbl-name">C3</span><span class="tbl-guests" id="g-C3"></span><span class="tbl-time" id="tm-C3"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C14"  style="left:221px;top:120px;width:48px;height:62px;"><span class="tbl-name">C14</span><span class="tbl-guests" id="g-C14"></span><span class="tbl-time" id="tm-C14"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C9"   style="left:219px;top:195px;width:48px;height:62px;"><span class="tbl-name">C9</span><span class="tbl-guests" id="g-C9"></span><span class="tbl-time" id="tm-C9"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C4"   style="left:219px;top:268px;width:48px;height:62px;"><span class="tbl-name">C4</span><span class="tbl-guests" id="g-C4"></span><span class="tbl-time" id="tm-C4"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C15"  style="left:165px;top:120px;width:48px;height:62px;"><span class="tbl-name">C15</span><span class="tbl-guests" id="g-C15"></span><span class="tbl-time" id="tm-C15"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C10"  style="left:162px;top:194px;width:48px;height:62px;"><span class="tbl-name">C10</span><span class="tbl-guests" id="g-C10"></span><span class="tbl-time" id="tm-C10"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-C5"   style="left:160px;top:268px;width:48px;height:62px;"><span class="tbl-name">C5</span><span class="tbl-guests" id="g-C5"></span><span class="tbl-time" id="tm-C5"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A13"  style="left:277px;top:344px;width:48px;height:62px;"><span class="tbl-name">A13</span><span class="tbl-guests" id="g-A13"></span><span class="tbl-time" id="tm-A13"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A14"  style="left:218px;top:345px;width:48px;height:62px;"><span class="tbl-name">A14</span><span class="tbl-guests" id="g-A14"></span><span class="tbl-time" id="tm-A14"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A15"  style="left:160px;top:343px;width:48px;height:62px;"><span class="tbl-name">A15</span><span class="tbl-guests" id="g-A15"></span><span class="tbl-time" id="tm-A15"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A9"   style="left:414px;top:451px;width:48px;height:62px;"><span class="tbl-name">A9</span><span class="tbl-guests" id="g-A9"></span><span class="tbl-time" id="tm-A9"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A10"  style="left:356px;top:451px;width:48px;height:62px;"><span class="tbl-name">A10</span><span class="tbl-guests" id="g-A10"></span><span class="tbl-time" id="tm-A10"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A5"   style="left:415px;top:531px;width:48px;height:62px;"><span class="tbl-name">A5</span><span class="tbl-guests" id="g-A5"></span><span class="tbl-time" id="tm-A5"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A6"   style="left:355px;top:531px;width:48px;height:62px;"><span class="tbl-name">A6</span><span class="tbl-guests" id="g-A6"></span><span class="tbl-time" id="tm-A6"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A1"   style="left:414px;top:613px;width:48px;height:62px;"><span class="tbl-name">A1</span><span class="tbl-guests" id="g-A1"></span><span class="tbl-time" id="tm-A1"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A2"   style="left:354px;top:612px;width:48px;height:62px;"><span class="tbl-name">A2</span><span class="tbl-guests" id="g-A2"></span><span class="tbl-time" id="tm-A2"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A11"  style="left:278px;top:454px;width:48px;height:62px;"><span class="tbl-name">A11</span><span class="tbl-guests" id="g-A11"></span><span class="tbl-time" id="tm-A11"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A12"  style="left:220px;top:454px;width:48px;height:62px;"><span class="tbl-name">A12</span><span class="tbl-guests" id="g-A12"></span><span class="tbl-time" id="tm-A12"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A7"   style="left:280px;top:531px;width:48px;height:62px;"><span class="tbl-name">A7</span><span class="tbl-guests" id="g-A7"></span><span class="tbl-time" id="tm-A7"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A8"   style="left:219px;top:532px;width:48px;height:62px;"><span class="tbl-name">A8</span><span class="tbl-guests" id="g-A8"></span><span class="tbl-time" id="tm-A8"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A3"   style="left:278px;top:612px;width:48px;height:62px;"><span class="tbl-name">A3</span><span class="tbl-guests" id="g-A3"></span><span class="tbl-time" id="tm-A3"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-A4"   style="left:218px;top:612px;width:48px;height:62px;"><span class="tbl-name">A4</span><span class="tbl-guests" id="g-A4"></span><span class="tbl-time" id="tm-A4"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B1"   style="left:59px;top:344px;width:48px;height:62px;"><span class="tbl-name">B1</span><span class="tbl-guests" id="g-B1"></span><span class="tbl-time" id="tm-B1"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B2"   style="left:0px;top:343px;width:48px;height:62px;"><span class="tbl-name">B2</span><span class="tbl-guests" id="g-B2"></span><span class="tbl-time" id="tm-B2"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B3"   style="left:58px;top:270px;width:48px;height:62px;"><span class="tbl-name">B3</span><span class="tbl-guests" id="g-B3"></span><span class="tbl-time" id="tm-B3"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B4"   style="left:0px;top:269px;width:48px;height:62px;"><span class="tbl-name">B4</span><span class="tbl-guests" id="g-B4"></span><span class="tbl-time" id="tm-B4"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B5"   style="left:59px;top:196px;width:48px;height:62px;"><span class="tbl-name">B5</span><span class="tbl-guests" id="g-B5"></span><span class="tbl-time" id="tm-B5"></span><span class="rzh">⤡</span></div>
+  <div class="tbl" id="b-B6"   style="left:2px;top:195px;width:48px;height:62px;"><span class="tbl-name">B6</span><span class="tbl-guests" id="g-B6"></span><span class="tbl-time" id="tm-B6"></span><span class="rzh">⤡</span></div>
+</div>
+
+<div id="summary">All tables open</div>
+
+<!-- Guest count picker -->
+<div id="guest-modal">
+  <div id="guest-box">
+    <h3>TABLE <span id="guest-tbl-name"></span> — HOW MANY GUESTS?</h3>
+    <div class="guest-btns">
+      <button class="g-btn" data-n="1">1</button>
+      <button class="g-btn" data-n="2">2</button>
+      <button class="g-btn" data-n="3">3</button>
+      <button class="g-btn" data-n="4">4</button>
+      <button class="g-btn" data-n="5">5</button>
+      <button class="g-btn" data-n="6">6</button>
+      <button class="g-btn" data-n="7">7</button>
+      <button class="g-btn" data-n="8">8</button>
+      <button class="g-btn" data-n="9">9</button>
+      <button class="g-btn" data-n="10">10</button>
+      <button class="g-btn" data-n="11">11</button>
+      <button class="g-btn" data-n="12">12</button>
+    </div>
+    <button id="guest-cancel">CANCEL</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var state = {}, ivs = {};
+  var summary  = document.getElementById('summary');
+  var body     = document.body;
+  var btnMode  = document.getElementById('btn-mode');
+  var modal    = document.getElementById('guest-modal');
+  var modalLbl = document.getElementById('guest-tbl-name');
+  var isLocked = true;
+  var pendingId = null;
+
+  // ── Mode toggle ───────────────────────────────────────
+  btnMode.addEventListener('click', function() {
+    isLocked = !isLocked;
+    body.className  = isLocked ? 'locked' : 'editing';
+    btnMode.className = isLocked ? 'locked' : 'editing';
+    btnMode.textContent = isLocked ? '🔒 LOCKED' : '✏️ EDITING';
+  });
+
+  // ── Guest picker ──────────────────────────────────────
+  document.querySelectorAll('.g-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (pendingId === null) return;
+      var n = parseInt(btn.getAttribute('data-n'));
+      closeModal();
+      startTable(pendingId, n);
+    });
+    // Touch support for modal buttons
+    btn.addEventListener('touchend', function(e) {
+      e.preventDefault();
+      if (pendingId === null) return;
+      var n = parseInt(btn.getAttribute('data-n'));
+      closeModal();
+      startTable(pendingId, n);
+    });
+  });
+
+  document.getElementById('guest-cancel').addEventListener('click', closeModal);
+  document.getElementById('guest-cancel').addEventListener('touchend', function(e){ e.preventDefault(); closeModal(); });
+
+  function openModal(id) {
+    pendingId = id;
+    modalLbl.textContent = id;
+    modal.classList.add('show');
+  }
+  function closeModal() {
+    modal.classList.remove('show');
+    pendingId = null;
+  }
+
+  // ── Wire up tables ────────────────────────────────────
+  document.querySelectorAll('.tbl').forEach(function(el) {
+    var id = el.id.replace('b-', '');
+    state[id] = {
+      started: null, guests: 0,
+      x: parseInt(el.style.left), y: parseInt(el.style.top),
+      w: parseInt(el.style.width), h: parseInt(el.style.height)
+    };
+
+    var dragging=false, moved=false, t0x, t0y, startL, startTop;
+    var TAP = 8;
+
+    el.addEventListener('touchstart', function(e) {
+      if (e.target.classList.contains('rzh')) return;
+      e.preventDefault();
+      dragging=true; moved=false;
+      t0x=e.changedTouches[0].clientX; t0y=e.changedTouches[0].clientY;
+      startL=parseInt(el.style.left); startTop=parseInt(el.style.top);
+      el.style.zIndex=200;
+    }, {passive:false});
+
+    el.addEventListener('touchmove', function(e) {
+      if (!dragging) return; e.preventDefault();
+      var dx=e.changedTouches[0].clientX-t0x, dy=e.changedTouches[0].clientY-t0y;
+      if (Math.abs(dx)>TAP||Math.abs(dy)>TAP) moved=true;
+      if (moved&&!isLocked) {
+        el.style.left=(startL+dx)+'px'; el.style.top=(startTop+dy)+'px';
+        state[id].x=startL+dx; state[id].y=startTop+dy;
+      }
+    }, {passive:false});
+
+    el.addEventListener('touchend', function(e) {
+      if (!dragging) return; e.preventDefault();
+      dragging=false; el.style.zIndex='';
+      if (!moved) toggle(id);
+    }, {passive:false});
+
+    el.addEventListener('touchcancel', function(){ dragging=false; el.style.zIndex=''; });
+
+    // Resize
+    var rzh=el.querySelector('.rzh'), rD=false, rT0x, rT0y, rSW, rSH;
+    rzh.addEventListener('touchstart', function(e) {
+      if(isLocked) return;
+      e.preventDefault(); e.stopPropagation(); rD=true;
+      rT0x=e.changedTouches[0].clientX; rT0y=e.changedTouches[0].clientY;
+      rSW=parseInt(el.style.width); rSH=parseInt(el.style.height);
+    },{passive:false});
+    rzh.addEventListener('touchmove', function(e) {
+      if(!rD||isLocked) return; e.preventDefault(); e.stopPropagation();
+      var nw=Math.max(40,rSW+(e.changedTouches[0].clientX-rT0x));
+      var nh=Math.max(36,rSH+(e.changedTouches[0].clientY-rT0y));
+      el.style.width=nw+'px'; el.style.height=nh+'px'; state[id].w=nw; state[id].h=nh;
+    },{passive:false});
+    rzh.addEventListener('touchend', function(e){ e.preventDefault(); rD=false; },{passive:false});
+
+    // Mouse fallback
+    el.addEventListener('mousedown', function(e) {
+      if(e.target.classList.contains('rzh')) return; e.preventDefault();
+      var mx=e.clientX,my=e.clientY,sl=parseInt(el.style.left),st=parseInt(el.style.top),mm=false;
+      el.style.zIndex=200;
+      function mv(e){var dx=e.clientX-mx,dy=e.clientY-my;if(Math.abs(dx)>TAP||Math.abs(dy)>TAP)mm=true;if(mm&&!isLocked){el.style.left=(sl+dx)+'px';el.style.top=(st+dy)+'px';state[id].x=sl+dx;state[id].y=st+dy;}}
+      function mu(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',mu);el.style.zIndex='';if(!mm)toggle(id);}
+      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',mu);
+    });
+    rzh.addEventListener('mousedown', function(e) {
+      if(isLocked) return; e.stopPropagation(); e.preventDefault();
+      var sx=e.clientX,sy=e.clientY,sw=parseInt(el.style.width),sh=parseInt(el.style.height);
+      function mv(e){var nw=Math.max(40,sw+(e.clientX-sx)),nh=Math.max(36,sh+(e.clientY-sy));el.style.width=nw+'px';el.style.height=nh+'px';state[id].w=nw;state[id].h=nh;}
+      function mu(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',mu);}
+      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',mu);
+    });
+  });
+
+  // ── Timer logic ───────────────────────────────────────
+  function toggle(id) {
+    var s=state[id];
+    if (s.started) {
+      // Stop timer
+      clearInterval(ivs[id]); delete ivs[id];
+      s.started=null; s.guests=0;
+      var el=document.getElementById('b-'+id);
+      el.className='tbl';
+      document.getElementById('tm-'+id).textContent='';
+      document.getElementById('g-'+id).textContent='';
+      updateSummary();
+    } else {
+      // Ask for guest count first
+      openModal(id);
+    }
+  }
+
+  function startTable(id, guests) {
+    var s=state[id];
+    s.started=Date.now(); s.guests=guests;
+    document.getElementById('g-'+id).textContent='👤'+guests;
+    ivs[id]=setInterval(function(){tick(id);},1000);
+    tick(id);
+    updateSummary();
+  }
+
+  function tick(id) {
+    var s=state[id]; if(!s.started) return;
+    var sec=Math.floor((Date.now()-s.started)/1000);
+    var m=Math.floor(sec/60), sc=sec%60;
+    document.getElementById('tm-'+id).textContent=pad(m)+':'+pad(sc);
+    document.getElementById('b-'+id).className='tbl '+(m>=60?'hot':m>=30?'warn':'on');
+  }
+
+  function pad(n){return n<10?'0'+n:''+n;}
+
+  function updateSummary() {
+    var n=0, guests=0;
+    Object.keys(state).forEach(function(id){
+      if(state[id].started){ n++; guests+=state[id].guests; }
+    });
+    summary.textContent = n===0
+      ? 'All tables open'
+      : n+' table'+(n!==1?'s':'')+' occupied · '+guests+' guest'+(guests!==1?'s':'');
+  }
+
+})();
+    mk.addEventListener('touchend', function(e) { e.preventDefault(); dragging=false; }, {passive:false});
+    mk.addEventListener('mousedown', function(e) {
+      e.preventDefault(); dragging=true;
+      t0x=e.clientX; t0y=e.clientY; sl=parseInt(mk.style.left); st=parseInt(mk.style.top);
+      function mv(e){mk.style.left=(sl+(e.clientX-t0x))+'px';mk.style.top=(st+(e.clientY-t0y))+'px';}
+      function mu(){dragging=false;document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',mu);}
+      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',mu);
+    });
+  });
+
+</script>
+</body>
+</html>
