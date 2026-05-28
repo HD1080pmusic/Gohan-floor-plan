@@ -396,16 +396,6 @@
   }
 
 })();
-    mk.addEventListener('touchend', function(e) { e.preventDefault(); dragging=false; }, {passive:false});
-    mk.addEventListener('mousedown', function(e) {
-      e.preventDefault(); dragging=true;
-      t0x=e.clientX; t0y=e.clientY; sl=parseInt(mk.style.left); st=parseInt(mk.style.top);
-      function mv(e){mk.style.left=(sl+(e.clientX-t0x))+'px';mk.style.top=(st+(e.clientY-t0y))+'px';}
-      function mu(){dragging=false;document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',mu);}
-      document.addEventListener('mousemove',mv); document.addEventListener('mouseup',mu);
-    });
-  });
-
 </script>
 </body>
 </html>
