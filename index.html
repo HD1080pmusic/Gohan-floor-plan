@@ -85,6 +85,7 @@
     display:none; position:fixed; inset:0; z-index:2000;
     background:rgba(0,0,0,.7);
     align-items:center; justify-content:center;
+    touch-action:none;
   }
   #guest-modal.show { display:flex; }
   #guest-box {
@@ -227,24 +228,32 @@
   document.querySelectorAll('.g-btn').forEach(function(btn) {
     btn.addEventListener('touchend', function(e) {
       e.preventDefault();
+      e.stopPropagation();
       if (pendingId === null) return;
+      var id = pendingId;  // capture before closeModal clears it
       var n = parseInt(btn.getAttribute('data-n'));
       closeModal();
-      startTable(pendingId, n);
+      startTable(id, n);
     });
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
       if (pendingId === null) return;
+      var id = pendingId;
       var n = parseInt(btn.getAttribute('data-n'));
       closeModal();
-      startTable(pendingId, n);
+      startTable(id, n);
     });
   });
 
-  document.getElementById('guest-cancel').addEventListener('touchend', function(e) { e.preventDefault(); closeModal(); });
-  document.getElementById('guest-cancel').addEventListener('click', closeModal);
+  document.getElementById('guest-cancel').addEventListener('touchend', function(e) { e.preventDefault(); e.stopPropagation(); closeModal(); });
+  document.getElementById('guest-cancel').addEventListener('click', function(e) { e.stopPropagation(); closeModal(); });
 
   function openModal(id) { pendingId = id; modalLbl.textContent = id; modal.classList.add('show'); }
   function closeModal()  { modal.classList.remove('show'); pendingId = null; }
+
+  // Block all touches on modal from reaching the canvas below
+  modal.addEventListener('touchstart', function(e) { e.stopPropagation(); }, {passive:true});
+  modal.addEventListener('touchend',   function(e) { e.stopPropagation(); }, {passive:true});
 
   // Wire up tables
   document.querySelectorAll('.tbl').forEach(function(el) {
